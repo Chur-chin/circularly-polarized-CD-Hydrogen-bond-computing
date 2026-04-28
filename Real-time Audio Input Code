@@ -1,0 +1,38 @@
+import sounddevice as sd
+import numpy as np
+from scipy.signal import stft
+
+# ============================================
+# PARAMETERS
+# ============================================
+
+fs = 16000
+duration = 5
+
+print("Recording...")
+
+audio = sd.rec(
+    int(duration * fs),
+    samplerate=fs,
+    channels=1
+)
+
+sd.wait()
+
+audio = audio.flatten()
+
+print("Recording complete.")
+
+# ============================================
+# STFT
+# ============================================
+
+f, t, Zxx = stft(
+    audio,
+    fs=fs,
+    nperseg=512
+)
+
+spectrogram = np.abs(Zxx)
+
+print("Spectrogram shape:", spectrogram.shape)
