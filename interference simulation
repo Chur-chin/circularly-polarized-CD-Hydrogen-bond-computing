@@ -1,0 +1,9 @@
+x = np.linspace(0, 20, 2000)
+
+wave1 = np.sin(2*np.pi*0.7*x)
+
+wave2 = np.sin(
+    2*np.pi*0.7*x + np.pi/2
+)
+
+interference = wave1 + wave2
