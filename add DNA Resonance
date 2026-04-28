@@ -1,0 +1,10 @@
+t = np.arange(N)
+
+omega_dna = 2*np.pi*0.01
+
+DNA_res = 0.2*np.sin(omega_dna*t)
+
+DNA = DNA_base + DNA_res + n_dna
+memory_state[i] =
+0.995*memory_state[i-1]
++ dna_resonance[i]
