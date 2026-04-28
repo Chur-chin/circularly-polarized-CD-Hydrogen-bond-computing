@@ -1,0 +1,338 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import stft, istft, hilbert
+
+# ============================================================
+# PARAMETERS
+# ============================================================
+
+N = 8000
+t = np.arange(N)
+
+np.random.seed(0)
+
+# ============================================================
+# NOISE GENERATORS
+# ============================================================
+
+def gaussian_noise(sigma, N):
+    return np.random.normal(0, sigma, N)
+
+def pink_noise(sigma, N):
+
+    freqs = np.fft.rfftfreq(N)
+    freqs[0] = freqs[1]
+
+    spectrum = (
+        np.random.randn(len(freqs))
+        + 1j*np.random.randn(len(freqs))
+    )
+
+    spectrum /= np.sqrt(freqs)
+
+    noise = np.fft.irfft(spectrum, n=N)
+
+    noise = noise / np.std(noise)
+
+    return sigma * noise
+
+# ============================================================
+# SIGNALS
+# ============================================================
+
+# ------------------------------------------------------------
+# TV Noise
+# ------------------------------------------------------------
+
+tv_noise = (
+    0.7*np.sin(2*np.pi*0.003*t)
+    + pink_noise(0.5, N)
+)
+
+# ------------------------------------------------------------
+# Baby Cry
+# ------------------------------------------------------------
+
+baby_cry = np.zeros(N)
+
+cry_start = 1500
+cry_end = 2800
+
+baby_cry[cry_start:cry_end] = (
+    2.0*np.sin(2*np.pi*0.028*t[:cry_end-cry_start])
+)
+
+# ------------------------------------------------------------
+# Smith Speech
+# ------------------------------------------------------------
+
+smith_voice = np.zeros(N)
+
+speech_start = 4200
+speech_end = 5500
+
+smith_voice[speech_start:speech_end] = (
+    2.5*np.sin(2*np.pi*0.011*t[:speech_end-speech_start])
+)
+
+# ============================================================
+# MIXED AUDITORY ENVIRONMENT
+# ============================================================
+
+mixed_signal = (
+    tv_noise
+    + baby_cry
+    + smith_voice
+)
+
+# ============================================================
+# 1. SPOKEN-WORD EXTRACTION
+# ============================================================
+
+f, tt, Zxx = stft(
+    mixed_signal,
+    fs=100,
+    nperseg=256
+)
+
+# speech band mask
+speech_mask = (
+    (f > 0.8)
+    & (f < 2.5)
+)
+
+Z_filtered = np.zeros_like(Zxx)
+
+Z_filtered[speech_mask, :] = (
+    Zxx[speech_mask, :]
+)
+
+_, reconstructed_speech = istft(
+    Z_filtered,
+    fs=100
+)
+
+# ============================================================
+# 2. MULTI-AGENT SYNCHRONIZATION
+# ============================================================
+
+num_agents = 4
+
+agents = np.zeros((num_agents, N))
+
+omega = [0.010, 0.0105, 0.0095, 0.011]
+
+coupling = 0.03
+
+for a in range(num_agents):
+
+    agents[a,0] = np.random.rand()
+
+for i in range(N-1):
+
+    mean_field = np.mean(agents[:,i])
+
+    for a in range(num_agents):
+
+        agents[a,i+1] = (
+            agents[a,i]
+            + omega[a]
+            + coupling*(mean_field - agents[a,i])
+        )
+
+# ============================================================
+# PHASE LOCKING VALUE (PLV)
+# ============================================================
+
+plv_list = []
+
+for a in range(num_agents-1):
+
+    phi1 = agents[a]
+    phi2 = agents[a+1]
+
+    delta_phi = phi1 - phi2
+
+    PLV = np.abs(
+        np.mean(
+            np.exp(1j*delta_phi)
+        )
+    )
+
+    plv_list.append(PLV)
+
+global_plv = np.mean(plv_list)
+
+# ============================================================
+# 3. CHIRAL PHASE LOGIC
+# ============================================================
+
+# LCP = +1
+# RCP = -1
+
+inputs = [
+    (+1, +1),
+    (+1, -1),
+    (-1, +1),
+    (-1, -1)
+]
+
+logic_output = []
+
+for A, B in inputs:
+
+    phase = A * B
+
+    # Möbius-like inversion
+    if phase < 0:
+        out = 1
+    else:
+        out = 0
+
+    logic_output.append(out)
+
+# ============================================================
+# 4. DNA RESONANCE MEMORY ECHO
+# ============================================================
+
+omega_dna = 2*np.pi*0.0012
+
+dna_resonance = (
+    0.8*np.sin(omega_dna*t)
+)
+
+memory = np.zeros(N)
+
+for i in range(1, N):
+
+    memory[i] = (
+        0.997*memory[i-1]
+        + dna_resonance[i]
+    )
+
+# autocorrelation
+corr = np.correlate(
+    memory,
+    memory,
+    mode='full'
+)
+
+corr = corr[corr.size//2:]
+
+corr = corr / np.max(corr)
+
+# echo lifetime threshold
+threshold = 0.2
+
+echo_lifetime = np.argmax(corr < threshold)
+
+# ============================================================
+# OUTPUTS
+# ============================================================
+
+print("\n====================================")
+print("FULL PHYSICAL COGNITIVE AI TEST")
+print("====================================\n")
+
+print("1. Speech Reconstruction Completed.")
+
+print(
+    f"\n2. Multi-Agent Global PLV = "
+    f"{global_plv:.4f}"
+)
+
+print("\n3. Chiral XOR Logic:")
+
+for inp, out in zip(inputs, logic_output):
+
+    print(f"{inp} -> {out}")
+
+print(
+    f"\n4. Memory Echo Lifetime = "
+    f"{echo_lifetime} steps"
+)
+
+# ============================================================
+# PLOTS
+# ============================================================
+
+plt.figure(figsize=(16,16))
+
+# ------------------------------------------------------------
+# Mixed Signal
+# ------------------------------------------------------------
+
+plt.subplot(5,1,1)
+
+plt.plot(mixed_signal)
+
+plt.title("Mixed Auditory Environment")
+
+# ------------------------------------------------------------
+# Reconstructed Speech
+# ------------------------------------------------------------
+
+plt.subplot(5,1,2)
+
+plt.plot(reconstructed_speech)
+
+plt.title("Reconstructed Speech")
+
+# ------------------------------------------------------------
+# Multi-Agent Synchronization
+# ------------------------------------------------------------
+
+plt.subplot(5,1,3)
+
+for a in range(num_agents):
+
+    plt.plot(
+        agents[a],
+        label=f'Agent {a}'
+    )
+
+plt.legend()
+
+plt.title(
+    f"Multi-Agent Synchronization "
+    f"(PLV={global_plv:.4f})"
+)
+
+# ------------------------------------------------------------
+# Memory Echo
+# ------------------------------------------------------------
+
+plt.subplot(5,1,4)
+
+plt.plot(corr)
+
+plt.axhline(
+    threshold,
+    linestyle='--'
+)
+
+plt.title(
+    f"Memory Echo Lifetime = "
+    f"{echo_lifetime}"
+)
+
+# ------------------------------------------------------------
+# Spectrogram
+# ------------------------------------------------------------
+
+plt.subplot(5,1,5)
+
+plt.pcolormesh(
+    tt,
+    f,
+    np.abs(Zxx),
+    shading='gouraud'
+)
+
+plt.title("STFT Spectrogram")
+
+plt.ylabel("Frequency")
+plt.xlabel("Time")
+
+plt.tight_layout()
+plt.show()
