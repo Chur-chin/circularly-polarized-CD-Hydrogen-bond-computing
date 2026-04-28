@@ -1,0 +1,215 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ============================================================
+# PARAMETERS
+# ============================================================
+
+N = 4000
+t = np.arange(N)
+
+np.random.seed(42)
+
+# ============================================================
+# 1. NOISE GENERATORS
+# ============================================================
+
+def gaussian_noise(sigma, N):
+    return np.random.normal(0, sigma, N)
+
+def pink_noise(sigma, N):
+
+    freqs = np.fft.rfftfreq(N)
+    freqs[0] = freqs[1]
+
+    spectrum = (
+        np.random.randn(len(freqs))
+        + 1j*np.random.randn(len(freqs))
+    )
+
+    spectrum /= np.sqrt(freqs)
+
+    noise = np.fft.irfft(spectrum, n=N)
+
+    noise = noise / np.std(noise)
+
+    return sigma * noise
+
+# ============================================================
+# 2. ENVIRONMENT SIGNALS
+# ============================================================
+
+# ------------------------------------------------------------
+# TV noise (continuous)
+# ------------------------------------------------------------
+
+tv_noise = (
+    0.5*np.sin(2*np.pi*0.005*t)
+    + pink_noise(0.3, N)
+)
+
+# ------------------------------------------------------------
+# Baby crying (strong transient)
+# ------------------------------------------------------------
+
+baby_cry = np.zeros(N)
+
+cry_start = 1200
+cry_end = 2200
+
+baby_cry[cry_start:cry_end] = (
+    1.5*np.sin(2*np.pi*0.03*t[:cry_end-cry_start])
+)
+
+baby_cry += gaussian_noise(0.1, N)
+
+# ------------------------------------------------------------
+# Smith speech signal
+# "What's for dinner?"
+# ------------------------------------------------------------
+
+smith_voice = np.zeros(N)
+
+speech_start = 2500
+speech_end = 3200
+
+smith_voice[speech_start:speech_end] = (
+    2.0*np.sin(2*np.pi*0.01*t[:speech_end-speech_start])
+)
+
+# ============================================================
+# 3. VISUAL INPUT
+# ============================================================
+
+# TV visual distraction
+visual_tv = (
+    0.4*np.sin(2*np.pi*0.002*t)
+)
+
+# Baby face detection
+baby_visual = np.zeros(N)
+baby_visual[cry_start:cry_end] = 1.0
+
+# Smith face detection
+smith_visual = np.zeros(N)
+smith_visual[speech_start:speech_end] = 1.0
+
+# ============================================================
+# 4. DNA RESONANCE MEMORY STABILIZER
+# ============================================================
+
+omega_dna = 2*np.pi*0.0015
+
+dna_resonance = (
+    0.8*np.sin(omega_dna*t)
+)
+
+# slow coherence stabilization
+memory_state = np.zeros(N)
+
+for i in range(1, N):
+
+    memory_state[i] = (
+        0.995*memory_state[i-1]
+        + dna_resonance[i]
+    )
+
+# ============================================================
+# 5. MULTI-MODAL FUSION
+# ============================================================
+
+auditory_input = (
+    smith_voice
+    + tv_noise
+    + baby_cry
+)
+
+visual_input = (
+    0.3*visual_tv
+    + 1.5*baby_visual
+    + 1.0*smith_visual
+)
+
+# ============================================================
+# 6. ATTENTION SYSTEM
+# ============================================================
+
+# prioritize baby crying
+attention = (
+    1.5*baby_visual
+    + 1.0*smith_visual
+    - 0.4*np.abs(tv_noise)
+)
+
+attention = np.clip(attention, 0, None)
+
+# ============================================================
+# 7. PHYSICAL AI PHASE PROCESSING
+# ============================================================
+
+phase_state = (
+    0.8*auditory_input
+    + 0.6*visual_input
+    + 0.7*memory_state
+)
+
+# phase closure
+phase_total = np.mod(phase_state, 2*np.pi)
+
+# ============================================================
+# 8. DECISION READOUT
+# ============================================================
+
+# baby soothing detection
+baby_detected = np.mean(
+    attention[cry_start:cry_end]
+) > 0.8
+
+# speech detection
+speech_detected = np.mean(
+    phase_total[speech_start:speech_end]
+) > 1.0
+
+# ============================================================
+# 9. OUTPUT
+# ============================================================
+
+print("\n===================================")
+print("PHYSICAL AI MULTI-MODAL TEST")
+print("===================================\n")
+
+if baby_detected:
+    print("AI Action: Calm the baby.")
+
+if speech_detected:
+    print("AI Response: 'Tonight is turkey dinner.'")
+
+print("\nNoise Robustness Test Completed.")
+
+# ============================================================
+# 10. PLOTS
+# ============================================================
+
+plt.figure(figsize=(14,10))
+
+plt.subplot(4,1,1)
+plt.plot(tv_noise, label='TV Noise')
+plt.plot(baby_cry, label='Baby Cry')
+plt.plot(smith_voice, label='Smith Voice')
+plt.legend()
+plt.title("Auditory Inputs")
+
+plt.subplot(4,1,2)
+plt.plot(visual_input)
+plt.title("Visual Inputs")
+
+plt.subplot(4,1,3)
+plt.plot(memory_state)
+plt.title("DNA Resonance Memory State")
+
+plt.subplot(4,1,4)
+plt.plot(phase_total)
+plt.title("Physical AI Phase Readout")
+
+plt.tight_layout()
+plt.show()
